@@ -1,12 +1,8 @@
 import json
 import logManager
 import requests
-import configManager
-from HueObjects import Sensor
-from functions.core import nextFreeId
 
 logging = logManager.logger.get_logger(__name__)
-bridgeConfig = configManager.bridgeConfig.yaml_config
 
 def set_light(light, data):
     url = "http://" + light.protocol_cfg["ip"] + "/api/" + light.protocol_cfg["hueUser"] + "/lights/" + light.protocol_cfg["id"] + "/state"
@@ -58,6 +54,12 @@ def discover(detectedLights, credentials):
 
 def discover_sensors(credentials):
     """Discover sensors (switches, buttons, motion sensors, etc.) from upstream Hue Bridge"""
+    # Import here to avoid circular dependency
+    import configManager
+    from HueObjects import Sensor
+    from functions.core import nextFreeId
+    bridgeConfig = configManager.bridgeConfig.yaml_config
+    
     if "hueUser" in credentials and len(credentials["hueUser"]) > 32:
         logging.debug("hue: <discover_sensors> invoked!")
         try:
