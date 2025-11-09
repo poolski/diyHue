@@ -100,7 +100,7 @@ def runHttp(BIND_IP, HOST_HTTP_PORT):
     app.run(host=BIND_IP, port=HOST_HTTP_PORT)
 
 if __name__ == '__main__':
-    from services import mqtt, deconz, ssdp, mdns, scheduler, remoteApi, remoteDiscover, entertainment, stateFetch, eventStreamer, homeAssistantWS, updateManager
+    from services import mqtt, deconz, ssdp, mdns, scheduler, remoteApi, remoteDiscover, entertainment, stateFetch, eventStreamer, homeAssistantWS, updateManager, hueBridgeWrapper
     ### variables initialization
     BIND_IP = configManager.runtimeConfig.arg["BIND_IP"]
     HOST_IP = configManager.runtimeConfig.arg["HOST_IP"]
@@ -119,6 +119,8 @@ if __name__ == '__main__':
         Thread(target=mqtt.mqttServer).start()
     if bridgeConfig["config"]["homeassistant"]["enabled"]:
         homeAssistantWS.create_ws_client(bridgeConfig)
+    # Start Hue bridge wrapper service
+    Thread(target=hueBridgeWrapper.startHueBridgeWrapper).start()
     if not ("discovery" in bridgeConfig["config"] and bridgeConfig["config"]["discovery"] == False):
         Thread(target=remoteDiscover.runRemoteDiscover, args=[bridgeConfig["config"]]).start()
     Thread(target=remoteApi.runRemoteApi, args=[BIND_IP, bridgeConfig["config"]]).start()

@@ -5,7 +5,9 @@ import requests
 logging = logManager.logger.get_logger(__name__)
 
 def set_light(light, data):
-    url = "http://" + light.protocol_cfg["ip"] + "/api/" + light.protocol_cfg["hueUser"] + "/lights/" + light.protocol_cfg["id"] + "/state"
+    # Support both 'id' (legacy) and 'hue_id' (new) for compatibility
+    hue_light_id = light.protocol_cfg.get("hue_id", light.protocol_cfg.get("id"))
+    url = "http://" + light.protocol_cfg["ip"] + "/api/" + light.protocol_cfg["hueUser"] + "/lights/" + hue_light_id + "/state"
     payload = {}
     payload.update(data)
     color = {}
@@ -27,10 +29,17 @@ def set_light(light, data):
         requests.put(url, json=color, timeout=3)
 
 def get_light_state(light):
-    state = requests.get("http://" + light.protocol_cfg["ip"] + "/api/" + light.protocol_cfg["hueUser"] + "/lights/" + light.protocol_cfg["id"], timeout=3)
+    # Support both 'id' (legacy) and 'hue_id' (new) for compatibility
+    hue_light_id = light.protocol_cfg.get("hue_id", light.protocol_cfg.get("id"))
+    state = requests.get("http://" + light.protocol_cfg["ip"] + "/api/" + light.protocol_cfg["hueUser"] + "/lights/" + hue_light_id, timeout=3)
     return state.json()["state"]
 
 def discover(detectedLights, credentials):
+    """
+    Discover lights from a Hue bridge.
+    Note: This is now primarily used for backward compatibility.
+    The main discovery is handled by hueBridgeWrapper service.
+    """
     if "hueUser" in credentials and len(credentials["hueUser"]) > 32:
         logging.debug("hue: <discover> invoked!")
         try:
@@ -48,6 +57,7 @@ def discover(detectedLights, credentials):
                         modelid = "LOM001"
                     elif light["type"] == "Color light":
                         modelid = "LLC010"
-                    detectedLights.append({"protocol": "hue", "name": light["name"], "modelid": modelid, "protocol_cfg": {"ip": credentials["ip"], "hueUser": credentials["hueUser"], "modelid": light["modelid"], "id": id, "uniqueid": light["uniqueid"]}})
+                    # Store hue_id instead of id for wrapper compatibility
+                    detectedLights.append({"protocol": "hue", "name": light["name"], "modelid": modelid, "protocol_cfg": {"ip": credentials["ip"], "hueUser": credentials["hueUser"], "modelid": light["modelid"], "hue_id": id, "uniqueid": light["uniqueid"]}})
         except Exception as e:
             logging.info("Error connecting to Hue Bridge: %s", e)

@@ -197,6 +197,111 @@ standardSensors["8719514440999"] = standardSensors["RDM002"]
 standardSensors["9290035001"] = standardSensors["RDM002"]
 standardSensors["9290035003"] = standardSensors["RDM002"]
 
+# Additional Z2M switch/dimmer mappings
+# Philips Hue dimmer switch variations
+standardSensors["324131092621"] = standardSensors["RWL021"]  # Hue dimmer switch
+
+# IKEA switches and dimmers
+standardSensors["E1524/E1810"] = standardSensors["TRADFRI remote control"]  # IKEA remote
+standardSensors["E1743"] = standardSensors["TRADFRI on/off switch"]  # IKEA on/off switch
+standardSensors["E1744"] = standardSensors["TRADFRI wireless dimmer"]  # IKEA wireless dimmer
+
+# Xiaomi/Aqara switches
+standardSensors["WXKG11LM"] = {  # Aqara wireless switch (single button)
+    "dataConversion": {
+        "rootKey": "action",
+        "single": {"buttonevent": 1002},
+        "double": {"buttonevent": 1004},
+        "triple": {"buttonevent": 1005},
+        "quadruple": {"buttonevent": 1006},
+        "hold": {"buttonevent": 1001},
+        "release": {"buttonevent": 1003},
+    }
+}
+
+standardSensors["WXKG12LM"] = {  # Aqara wireless switch (with gyroscope)
+    "dataConversion": {
+        "rootKey": "action",
+        "single": {"buttonevent": 1002},
+        "double": {"buttonevent": 1004},
+        "hold": {"buttonevent": 1001},
+        "release": {"buttonevent": 1003},
+        "shake": {"buttonevent": 1010},
+    }
+}
+
+standardSensors["WXKG02LM"] = {  # Aqara double key wireless wall switch
+    "dataConversion": {
+        "rootKey": "action",
+        "single_left": {"buttonevent": 1002},
+        "single_right": {"buttonevent": 2002},
+        "single_both": {"buttonevent": 3002},
+        "double_left": {"buttonevent": 1004},
+        "double_right": {"buttonevent": 2004},
+        "double_both": {"buttonevent": 3004},
+        "hold_left": {"buttonevent": 1001},
+        "hold_right": {"buttonevent": 2001},
+        "hold_both": {"buttonevent": 3001},
+    }
+}
+
+standardSensors["WXKG03LM"] = {  # Aqara single key wireless wall switch
+    "dataConversion": {
+        "rootKey": "action",
+        "single": {"buttonevent": 1002},
+        "double": {"buttonevent": 1004},
+        "hold": {"buttonevent": 1001},
+        "release": {"buttonevent": 1003},
+    }
+}
+
+standardSensors["WXKG06LM"] = {  # Aqara D1 wireless switch (single button)
+    "dataConversion": {
+        "rootKey": "action",
+        "single": {"buttonevent": 1002},
+        "double": {"buttonevent": 1004},
+        "hold": {"buttonevent": 1001},
+    }
+}
+
+standardSensors["WXKG07LM"] = {  # Aqara D1 wireless switch (double button)
+    "dataConversion": {
+        "rootKey": "action",
+        "single_left": {"buttonevent": 1002},
+        "single_right": {"buttonevent": 2002},
+        "single_both": {"buttonevent": 3002},
+        "double_left": {"buttonevent": 1004},
+        "double_right": {"buttonevent": 2004},
+        "double_both": {"buttonevent": 3004},
+        "hold_left": {"buttonevent": 1001},
+        "hold_right": {"buttonevent": 2001},
+        "hold_both": {"buttonevent": 3001},
+    }
+}
+
+# Legrand switches
+standardSensors["067773"] = {  # Legrand wireless switch
+    "dataConversion": {
+        "rootKey": "action",
+        "single": {"buttonevent": 1002},
+        "double": {"buttonevent": 1004},
+        "hold": {"buttonevent": 1001},
+    }
+}
+
+# IKEA Symfonisk sound controller
+standardSensors["E1744"] = {
+    "dataConversion": {
+        "rootKey": "action",
+        "rotate_right": {"rotaryevent": 1},
+        "rotate_left": {"rotaryevent": -1},
+        "brightness_up": {"buttonevent": 1002},
+        "brightness_down": {"buttonevent": 2002},
+        "toggle": {"buttonevent": 1000},
+        "brightness_stop": {"buttonevent": 1003},
+    }
+}
+
 
 def getClient():
     return client
