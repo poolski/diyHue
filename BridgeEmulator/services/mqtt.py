@@ -30,6 +30,7 @@ discoveredDevices = {}
 
 
 motionSensors = ["TRADFRI motion sensor", "lumi.sensor_motion.aq2", "lumi.sensor_motion", "lumi.motion.ac02", "SML001"]
+contactSensors = ["lumi.sensor_magnet", "lumi.sensor_magnet.aq2"]
 standardSensors = {
     "TRADFRI remote control": {
         "dataConversion": {
@@ -306,7 +307,7 @@ def on_message(client, userdata, msg):
                 on_autodiscovery_light(msg)
             elif msg.topic == "zigbee2mqtt/bridge/devices":
                 for key in data:
-                    if "model_id" in key and (key["model_id"] in standardSensors or key["model_id"] in motionSensors): # Sensor is supported
+                    if "model_id" in key and (key["model_id"] in standardSensors or key["model_id"] in motionSensors or key["model_id"] in contactSensors): # Sensor is supported
                         if getObject(key["friendly_name"]) == False: ## Add the new sensor
                             logging.info("MQTT: Add new mqtt sensor " + key["friendly_name"])
                             if key["model_id"] in standardSensors:
@@ -320,6 +321,14 @@ def on_message(client, userdata, msg):
                             elif key["model_id"] in motionSensors:
                                     logging.info("MQTT: add new motion sensor " + key["model_id"])
                                     addHueMotionSensor(key["friendly_name"], "mqtt", {"modelid": key["model_id"], "lightSensor": "on", "friendly_name": key["friendly_name"]})
+                            ### Contact sensors (door/window sensors)
+                            elif key["model_id"] in contactSensors:
+                                    logging.info("MQTT: add new contact sensor " + key["model_id"])
+                                    new_sensor_id = nextFreeId(bridgeConfig, "sensors")
+                                    for sensor_type in sensorTypes[key["model_id"]].keys():
+                                        uniqueid = convertHexToMac(key["ieee_address"]) + "-01-0402"
+                                        sensorData = {"name": key["friendly_name"], "protocol": "mqtt", "modelid": key["model_id"], "type": sensor_type, "uniqueid": uniqueid, "protocol_cfg": {"friendly_name": key["friendly_name"], "ieeeAddr": key["ieee_address"], "model": key["definition"]["model"]}, "id_v1": new_sensor_id}
+                                        bridgeConfig["sensors"][new_sensor_id] = Sensor.Sensor(sensorData)
                             else:
                                 logging.info("MQTT: unsupported sensor " + key["model_id"])
             elif msg.topic == "zigbee2mqtt/bridge/log":
@@ -378,6 +387,14 @@ def on_message(client, userdata, msg):
                                 logging.info("Alarm triggered, sending email...")
                                 requests.post("https://diyhue.org/cdn/mailNotify.php", json={"to": bridgeConfig["config"]["alarm"]["email"], "sensor": device.name}, timeout=10)
                                 bridgeConfig["config"]["alarm"]["lasttriggered"] = int(current_time.timestamp())
+                        elif device.modelid in contactSensors:
+                            # Handle contact sensor state updates
+                            if "contact" in data:
+                                convertedPayload["open"] = not data["contact"]  # contact=true means closed, so open=false
+                            elif "contact_status" in data:
+                                convertedPayload["open"] = data["contact_status"]
+                            if "battery" in data:
+                                device.config["battery"] = data["battery"]
                         elif device.modelid in standardSensors:
                             convertedPayload.update(standardSensors[device.modelid]["dataConversion"][data[standardSensors[device.modelid]["dataConversion"]["rootKey"]]])
                         for key in convertedPayload.keys():
