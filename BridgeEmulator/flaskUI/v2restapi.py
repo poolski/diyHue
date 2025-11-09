@@ -22,7 +22,7 @@ bridgeConfig = configManager.bridgeConfig.yaml_config
 
 v2Resources = {"light": {}, "scene": {}, "smart_scene": {}, "grouped_light": {}, "room": {}, "zone": {
 }, "entertainment": {}, "entertainment_configuration": {}, "zigbee_connectivity": {}, "zigbee_device_discovery": {}, "device": {}, "device_power": {},
-"geofence_client": {}, "motion": {}, "light_level": {}, "temperature": {}, "relative_rotary": {}, "button": {}}
+"geofence_client": {}, "motion": {}, "light_level": {}, "temperature": {}, "relative_rotary": {}, "button": {}, "contact": {}}
 
 
 def getObject(element, v2uuid):
@@ -315,6 +315,9 @@ class ClipV2(Resource):
             lightlevel = sensor.getLightlevel()
             if lightlevel != None:
                 data.append(lightlevel)
+            contact = sensor.getContact()
+            if contact != None:
+                data.append(contact)
 
         return {"errors": [], "data": data}
 
@@ -424,6 +427,11 @@ class ClipV2Resource(Resource):
                 lightlevel = sensor.getLightlevel()
                 if lightlevel != None:
                     response["data"].append(lightlevel)
+        elif resource == "contact":
+            for key, sensor in bridgeConfig["sensors"].items():
+                contact = sensor.getContact()
+                if contact != None:
+                    response["data"].append(contact)
         else:
             response["errors"].append({"description": "Not Found"})
             del response["data"]
@@ -604,6 +612,8 @@ class ClipV2ResourceId(Resource):
             return {"errors": [], "data": [object.getTemperature()]}
         elif resource == "light_level":
             return {"errors": [], "data": [object.getLightlevel()]}
+        elif resource == "contact":
+            return {"errors": [], "data": [object.getContact()]}
 
     def put(self, resource, resourceid):
         logging.debug(request.headers)
@@ -709,6 +719,9 @@ class ClipV2ResourceId(Resource):
                         StreamEvent(streamMessage)
                     configManager.bridgeConfig.save_config(backup=False, resource="config")
         elif resource == "motion":
+            if "enabled" in putDict:
+                object.update_attr({"config": {"on": putDict["enabled"]}})
+        elif resource == "contact":
             if "enabled" in putDict:
                 object.update_attr({"config": {"on": putDict["enabled"]}})
         else:
