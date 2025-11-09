@@ -88,6 +88,7 @@ diyHue is an open-source Hue Bridge emulator written in Python. It integrates va
 - [Slack Community](https://diyhue.slack.com/)
 - [Discourse Forum](https://diyhue.discourse.group/)
 - [Philips Hue V2 Python Client](https://github.com/FengChendian/python-hue-v2)
+- [Zigbee2MQTT](https://www.zigbee2mqtt.io/)
 
 ---
 
