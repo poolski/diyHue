@@ -85,6 +85,16 @@ class Sensor():
                 "rid": self.id_v2,
                 "rtype": rtype
             }
+        elif self.type in ["ZHAOpenClose", "CLIPOpenClose"] or self.modelid == "CONTACT001":
+            return {
+                "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'contact')),
+                "rtype": "contact"
+            }
+        elif self.type in ["ZLLSwitch", "ZHASwitch", "ZGPSwitch"]:
+            return {
+                "rid": self.id_v2,
+                "rtype": 'device'
+            }
         else:
             return {
                 "rid": self.id_v2,
@@ -249,6 +259,67 @@ class Sensor():
                 "rtype": "zigbee_connectivity"
                 }]
             result["type"] = "device"
+        elif self.type in ["ZHAOpenClose", "CLIPOpenClose"] or (self.modelid == "CONTACT001"):
+            result = {"id": self.id_v2, "id_v1": "/sensors/" + self.id_v1, "type": "device"}
+            result["identify"] = {}
+            result["metadata"] = {
+                "archetype": "contact_sensor",
+                "name": self.name
+            }
+            result["product_data"] = {
+                "certified": True,
+                "manufacturer_name": self.manufacturername,
+                "model_id": self.modelid,
+                "product_archetype": "contact_sensor",
+                "product_name": "Contact sensor",
+                "software_version": self.swversion if self.swversion else "1.0.0"
+            }
+            result["services"] = [
+                {
+                    "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'contact')),
+                    "rtype": "contact"
+                },
+                {
+                    "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'zigbee_connectivity')),
+                    "rtype": "zigbee_connectivity"
+                }]
+            if "battery" in self.config:
+                result["services"].append({
+                    "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'device_power')),
+                    "rtype": "device_power"
+                })
+            result["type"] = "device"
+        elif self.type in ["ZLLSwitch", "ZHASwitch", "ZGPSwitch"] and self.modelid not in ["RWL022", "RWL021", "RWL020", "RDM002"]:
+            # Generic switch/button device support
+            result = {"id": self.id_v2, "id_v1": "/sensors/" + self.id_v1, "type": "device"}
+            result["identify"] = {}
+            result["metadata"] = {
+                "archetype": "unknown_archetype",
+                "name": self.name
+            }
+            result["product_data"] = {
+                "certified": True,
+                "manufacturer_name": self.manufacturername,
+                "model_id": self.modelid,
+                "product_archetype": "unknown_archetype",
+                "product_name": "Switch",
+                "software_version": self.swversion if self.swversion else "1.0.0"
+            }
+            result["services"] = [
+                {
+                    "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'button1')),
+                    "rtype": "button"
+                },
+                {
+                    "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'zigbee_connectivity')),
+                    "rtype": "zigbee_connectivity"
+                }]
+            if "battery" in self.config:
+                result["services"].append({
+                    "rid": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'device_power')),
+                    "rtype": "device_power"
+                })
+            result["type"] = "device"
         return result
 
     def getMotion(self):
@@ -366,6 +437,35 @@ class Sensor():
                     },
                 "type": "button"
               })
+        elif self.type in ["ZLLSwitch", "ZHASwitch", "ZGPSwitch"] and self.modelid not in ["RWL022", "RWL021", "RWL020", "RDM002"]:
+            # Generic switch - create a single button
+            result.append({
+                "id": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'button1')),
+                "id_v1": "/sensors/" + self.id_v1,
+                "owner": {
+                  "rid": self.id_v2,
+                  "rtype": "device"
+                },
+                "metadata": {
+                  "control_id": 1
+                },
+                "button": {
+                        "last_event": "short_release",
+                        "button_report": {
+                            "updated": self.state["lastupdated"],
+                            "event": "initial_press"
+                        },
+                        "repeat_interval": 800,
+                        "event_values": [
+                            "initial_press",
+                            "repeat",
+                            "short_release",
+                            "long_release",
+                            "long_press"
+                        ]
+                    },
+                "type": "button"
+              })
         return result
     
     def getRotary(self):
@@ -409,6 +509,32 @@ class Sensor():
                 result["power_state"].update({"battery_level": self.config["battery"],
                     "battery_state": "normal"
                     })
+        return result
+
+    def getContact(self):
+        result = None
+        if self.type in ["ZLLPresence", "ZHAOpenClose", "CLIPOpenClose"] and ("contact" in self.state or "open" in self.state):
+            # Determine contact state based on sensor type
+            contact_closed = False
+            if "contact" in self.state:
+                contact_closed = not self.state["contact"]  # contact=False means closed
+            elif "open" in self.state:
+                contact_closed = not self.state["open"]  # open=False means closed
+            
+            result = {
+                "enabled": self.config["on"],
+                "id": str(uuid.uuid5(uuid.NAMESPACE_URL, self.id_v2 + 'contact')),
+                "id_v1": "/sensors/" + self.id_v1,
+                "contact_report": {
+                    "changed": self.state["lastupdated"],
+                    "state": "contact" if contact_closed else "no_contact"
+                },
+                "owner": {
+                    "rid": self.id_v2,
+                    "rtype": "device"
+                },
+                "type": "contact"
+            }
         return result
 
     def update_attr(self, newdata):

@@ -14,6 +14,10 @@ sensorTypes["RWL022"] = sensorTypes["RWL021"]
 sensorTypes["TRADFRI remote control"] = {"ZHASwitch": {"state": {"buttonevent": 1002, "lastupdated": "none"}, "config": {"alert": "none", "battery": 90, "on": True, "reachable": True}, "static": {"swversion": "1.2.214", "manufacturername": "IKEA of Sweden"}}}
 sensorTypes["TRADFRI on/off switch"] = {"ZHASwitch": {"state": {"buttonevent": 1002, "lastupdated": "none"}, "config": {"alert": "none", "battery": 90, "on": True, "reachable": True}, "static": {"swversion": "2.2.008", "manufacturername": "IKEA of Sweden"}}}
 sensorTypes["TRADFRI wireless dimmer"] = {"ZHASwitch": {"state": {"buttonevent": 1002, "lastupdated": "none"}, "config": {"alert": "none", "battery": 90, "on": True, "reachable": True}, "static": {"swversion": "1.2.248", "manufacturername": "IKEA of Sweden"}}}
+# Contact sensors
+sensorTypes["CONTACT001"] = {"ZLLPresence": {"state": {"contact": False, "lastupdated": "none"}, "config": {"on": True, "battery": 100, "reachable": True, "alert": "none", "pending": []}, "static": {"swupdate": {"state": "noupdates", "lastinstall": "2021-03-16T21:16:40Z"}, "manufacturername": "Signify Netherlands B.V.", "productname": "Hue contact sensor", "swversion": "1.0.0", "capabilities": {"certified": True, "primary": True}}}}
+sensorTypes["lumi.sensor_magnet"] = {"ZHAOpenClose": {"state": {"open": False, "lastupdated": "none"}, "config": {"on": True, "battery": 100, "reachable": True, "temperature": 2000}, "static": {"swversion": "3000-0001", "manufacturername": "LUMI"}}}
+sensorTypes["lumi.sensor_magnet.aq2"] = {"ZHAOpenClose": {"state": {"open": False, "lastupdated": "none"}, "config": {"on": True, "battery": 100, "reachable": True, "temperature": 2000}, "static": {"swversion": "3000-0001", "manufacturername": "LUMI"}}}
 # Fix Deconz types
 # not used anymore?
 #sensorTypes["RWL020"]["ZHASwitch"] = sensorTypes["RWL020"]["ZLLSwitch"]
