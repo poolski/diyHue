@@ -1,0 +1,82 @@
+# GitHub Copilot Agent Configuration
+
+# This configuration file defines the behavior and scope of the GitHub Copilot Agent
+# for the diyHue repository. Adjust these settings to align with the project's needs.
+
+version: 1
+
+# Define the tasks and workflows the Copilot Agent should assist with.
+tasks:
+  - name: "Code Generation"
+    description: "Generate Python code for new features, services, or utilities."
+    enabled: true
+
+  - name: "Bug Fixing"
+    description: "Assist in identifying and fixing bugs in the codebase."
+    enabled: true
+
+  - name: "Documentation"
+    description: "Help improve and maintain project documentation."
+    enabled: true
+
+  - name: "Testing"
+    description: "Generate and improve unit tests for the project."
+    enabled: true
+
+# Define the directories and files the Copilot Agent should focus on.
+include:
+  - "BridgeEmulator/**"
+  - "flaskUI/**"
+  - "HueObjects/**"
+  - "lights/**"
+  - "services/**"
+  - "functions/**"
+
+# Exclude files or directories that should not be modified.
+exclude:
+  - "examples/**"
+  - "**/README.md"
+  - "**/LICENSE.md"
+
+# Define the coding conventions and guidelines for the project.
+coding_conventions:
+  - "Follow PEP-8 for Python code."
+  - "Use descriptive function and variable names."
+  - "Document all public methods and classes."
+
+# Define external dependencies and integrations.
+dependencies:
+  - name: "Python"
+    version: "3.x"
+  - name: "Node.js"
+    version: "LTS"
+  - name: "Docker"
+    version: "latest"
+
+# Define the communication channels for support and collaboration.
+# communication:
+#   - name: "Slack"
+#     url: "https://diyhue.slack.com/"
+#   - name: "Discourse"
+#     url: "https://diyhue.discourse.group/"
+#   - name: "GitHub Issues"
+#     url: "https://github.com/diyhue/diyHue/issues"
+
+# Define the logging and debugging preferences.
+logging:
+  level: "info"
+  output: "logs/copilot-agent.log"
+
+# Define the update and maintenance schedule.
+maintenance:
+  schedule: "weekly"
+  tasks:
+    - "Update dependencies."
+    - "Review and merge pull requests."
+    - "Run full test suite."
+
+# Define any additional notes or instructions for the Copilot Agent.
+notes:
+  - "Ensure all changes are backward-compatible."
+  - "Prioritize stability and performance."
+  - "Collaborate with maintainers for major changes."
