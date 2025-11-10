@@ -513,3 +513,70 @@ class ElementParamId(Resource):
             {param: {paramid: putDict}})
         logging.debug(responseList)
         return responseList
+
+
+class HueBridgeManager(Resource):
+    """
+    API endpoint for managing Hue bridge discovery and pairing.
+    
+    GET /api/{username}/hue-bridges - List discovered bridges
+    POST /api/{username}/hue-bridges - Pair with a bridge
+    """
+    
+    def get(self, username):
+        """Get list of discovered and configured bridges"""
+        auth = authorize(username)
+        if auth:
+            return auth
+        
+        from services import hueBridgeWrapper
+        
+        # Get discovered (unpaired) bridges
+        discovered = hueBridgeWrapper.getDiscoveredBridges()
+        
+        # Get configured bridges
+        configured = bridgeConfig["config"].get("hueBridges", [])
+        
+        return {
+            "discovered": discovered,
+            "configured": configured
+        }
+    
+    def post(self, username):
+        """Initiate pairing with a bridge"""
+        auth = authorize(username)
+        if auth:
+            return auth
+        
+        from services import hueBridgeWrapper
+        
+        data = request.get_json(force=True)
+        
+        if "ip" not in data:
+            return {"error": "Bridge IP address required"}, 400
+        
+        ip = data["ip"]
+        devicetype = data.get("devicetype", "diyhue#wrapper")
+        
+        # Attempt pairing
+        result = hueBridgeWrapper.pairWithBridge(ip, devicetype)
+        
+        if result.get("success"):
+            # Discover devices from newly paired bridge
+            bridge_config = {
+                "ip": ip,
+                "hueUser": result["username"],
+                "enabled": True
+            }
+            hueBridgeWrapper.discoverHueBridgeDevices(bridge_config)
+            
+            return {
+                "success": True,
+                "message": "Successfully paired with bridge",
+                "username": result["username"]
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Pairing failed")
+            }, 400

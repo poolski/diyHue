@@ -13,6 +13,8 @@
 diyHue provides a Ecosystem for several Smart Home Solutions, eliminating the need for vendor specific Bridges and Hardware.
 Written in Python and Open Source, you are now able to import and control all your Lights and Sensors into one System.
 
+**NEW: Hue Bridge Wrapper** - DIYHue can now act as a wrapper around real Philips Hue bridges, passing through all devices (lights, switches, dimmers, buttons, sensors) and combining them with Zigbee2MQTT and other protocol devices into one unified system. See [docs/HUE_BRIDGE_WRAPPER.md](docs/HUE_BRIDGE_WRAPPER.md) for details.
+
 Lightweight and resource friendly, to run on small devices like the RPi .... 24/7
 
 The Best part? No Cloud connection by Design!

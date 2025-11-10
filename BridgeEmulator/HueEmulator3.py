@@ -8,7 +8,7 @@ import configManager
 import logManager
 import flask_login
 from flaskUI.core import User #dummy import for flaks_login module
-from flaskUI.restful import NewUser, ShortConfig, EntireConfig, ResourceElements, Element, ElementParam, ElementParamId
+from flaskUI.restful import NewUser, ShortConfig, EntireConfig, ResourceElements, Element, ElementParam, ElementParamId, HueBridgeManager
 from flaskUI.v2restapi import AuthV1, ClipV2, ClipV2Resource, ClipV2ResourceId
 from flaskUI.espDevices import Switch
 from flaskUI.Credits import Credits
@@ -69,6 +69,8 @@ api.add_resource(ResourceElements, '/api/<string:username>/<string:resource>', s
 api.add_resource(Element, '/api/<string:username>/<string:resource>/<string:resourceid>', strict_slashes=False)
 api.add_resource(ElementParam, '/api/<string:username>/<string:resource>/<string:resourceid>/<string:param>/', strict_slashes=False)
 api.add_resource(ElementParamId, '/api/<string:username>/<string:resource>/<string:resourceid>/<string:param>/<string:paramid>/', strict_slashes=False)
+### Hue Bridge Management
+api.add_resource(HueBridgeManager, '/api/<string:username>/hue-bridges', strict_slashes=False)
 
 ### V2 API
 api.add_resource(AuthV1, '/auth/v1', strict_slashes=False)
@@ -100,7 +102,7 @@ def runHttp(BIND_IP, HOST_HTTP_PORT):
     app.run(host=BIND_IP, port=HOST_HTTP_PORT)
 
 if __name__ == '__main__':
-    from services import mqtt, deconz, ssdp, mdns, scheduler, remoteApi, remoteDiscover, entertainment, stateFetch, eventStreamer, homeAssistantWS, updateManager
+    from services import mqtt, deconz, ssdp, mdns, scheduler, remoteApi, remoteDiscover, entertainment, stateFetch, eventStreamer, homeAssistantWS, updateManager, hueBridgeWrapper
     ### variables initialization
     BIND_IP = configManager.runtimeConfig.arg["BIND_IP"]
     HOST_IP = configManager.runtimeConfig.arg["HOST_IP"]
@@ -119,6 +121,8 @@ if __name__ == '__main__':
         Thread(target=mqtt.mqttServer).start()
     if bridgeConfig["config"]["homeassistant"]["enabled"]:
         homeAssistantWS.create_ws_client(bridgeConfig)
+    # Start Hue bridge wrapper service
+    Thread(target=hueBridgeWrapper.startHueBridgeWrapper).start()
     if not ("discovery" in bridgeConfig["config"] and bridgeConfig["config"]["discovery"] == False):
         Thread(target=remoteDiscover.runRemoteDiscover, args=[bridgeConfig["config"]]).start()
     Thread(target=remoteApi.runRemoteApi, args=[BIND_IP, bridgeConfig["config"]]).start()

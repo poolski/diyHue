@@ -407,6 +407,16 @@ class ClipV2Resource(Resource):
                 lightlevel = device.getLightLevel()
                 if lightlevel != None:
                     response["data"].append(lightlevel)
+        elif resource == "contact":
+            for key, device in bridgeConfig["device"].items():
+                contact = device.getContact()
+                if contact != None:
+                    response["data"].append(contact)
+        elif resource == "tamper":
+            for key, device in bridgeConfig["device"].items():
+                tamper = device.getTamper()
+                if tamper != None:
+                    response["data"].append(tamper)
         else:
             response["errors"].append({"description": "Not Found"})
             del response["data"]
@@ -657,6 +667,10 @@ class ClipV2ResourceId(Resource):
             return {"errors": [], "data": [object.getTemperature()]}
         elif resource == "light_level":
             return {"errors": [], "data": [object.getLightLevel()]}
+        elif resource == "contact":
+            return {"errors": [], "data": [object.getContact()]}
+        elif resource == "tamper":
+            return {"errors": [], "data": [object.getTamper()]}
 
     def put(self, resource, resourceid):
         logging.debug(request.headers)

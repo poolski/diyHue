@@ -35,11 +35,11 @@ jobs:
 
       - name: Build docker image
         run: |
-          docker build -t diyhue/diyhue:ci -f ./.build/Dockerfile --platform=${{ matrix.arch }} --build-arg TARGETPLATFORM=${{ matrix.arch }} .
+          docker build -t poolski/diyhue:ci -f ./.build/Dockerfile --platform=${{ matrix.arch }} --build-arg TARGETPLATFORM=${{ matrix.arch }} .
 
       - name: Save tarball
         run: |
-          docker save --output output.tar diyhue/diyhue:ci
+          docker save --output output.tar poolski/diyhue:ci
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -71,7 +71,7 @@ jobs:
       - name: Run docker image
         if: success()
         run: |
-          docker run -d --name diyhue --network=host -v /mnt/hue-emulator/export:/opt/hue-emulator/export -e MAC=b8:27:eb:d4:dc:11 -e IP=192.168.1.123 -e DECONZ=192.168.1.111 -e IP_RANGE=5,6 -e DEBUG=true diyhue/diyhue:ci
+          docker run -d --name diyhue --network=host -v /mnt/hue-emulator/export:/opt/hue-emulator/export -e MAC=b8:27:eb:d4:dc:11 -e IP=192.168.1.123 -e DECONZ=192.168.1.111 -e IP_RANGE=5,6 -e DEBUG=true poolski/diyhue:ci
           sleep 15
           docker logs diyhue
 
@@ -87,11 +87,11 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, armv7, arm64, armv6]
-        registry: [registry.hub.docker.com, ghcr.io/diyhue]
+        registry: [ghcr.io/poolski]
     steps:
       - name: Set Docker Repository
         run: |
-          if [ ${GITHUB_REPOSITORY} == "diyhue/diyHue" ]; then
+          if [ ${GITHUB_REPOSITORY} == "poolski/diyHue" ]; then
             if [ ${{ matrix.registry }} == "registry.hub.docker.com" ]; then
               export DOCKER_REPO="diyhue/core"
             else
@@ -122,7 +122,7 @@ jobs:
 
       - name: Push Image
         run: |
-          docker tag diyhue/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${{ github.run_number }}
+          docker tag poolski/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${{ github.run_number }}
           docker push ${DOCKER_REPO}:${{ matrix.arch }}-${{ github.run_number }}
           echo ${DOCKER_REPO}:${{ matrix.arch }}-${{ github.run_number }} published
 
@@ -133,11 +133,11 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, armv7, arm64, armv6]
-        registry: [registry.hub.docker.com, ghcr.io/diyhue]
+        registry: [ghcr.io/poolski]
     steps:
       - name: Set Docker Repository
         run: |
-          if [ ${GITHUB_REPOSITORY} == "diyhue/diyHue" ]; then
+          if [ ${GITHUB_REPOSITORY} == "poolski/diyHue" ]; then
             if [ ${{ matrix.registry }} == "registry.hub.docker.com" ]; then
               export DOCKER_REPO="diyhue/core"
             else
@@ -174,28 +174,28 @@ jobs:
       - name: Deploy Commit ID
         if: ${{ github.sha != '' }}
         run: |
-          docker tag diyhue/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}-$GITHUB_SHA
+          docker tag poolski/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}-$GITHUB_SHA
           docker push ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}-$GITHUB_SHA
           echo ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}-$GITHUB_SHA published
 
       - name: Deploy Latest
         if: ${{ github.ref == 'refs/heads/master' }}
         run: |
-          docker tag diyhue/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-latest
+          docker tag poolski/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-latest
           docker push ${DOCKER_REPO}:${{ matrix.arch }}-latest
           echo ${DOCKER_REPO}:${{ matrix.arch }}-latest published
 
       - name: Deploy Branch
         if: ${{ startsWith(github.ref, 'refs/heads/') }}
         run: |
-          docker tag diyhue/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}
+          docker tag poolski/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}
           docker push ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}
           echo ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/} published
 
       - name: Deploy Tag
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: |
-          docker tag diyhue/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}
+          docker tag poolski/diyhue:ci ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}
           docker push ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/}
           echo ${DOCKER_REPO}:${{ matrix.arch }}-${GITHUB_REF##*/} published
 
@@ -205,11 +205,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        registry: [registry.hub.docker.com, ghcr.io/diyhue]
+        registry: [ghcr.io/poolski]
     steps:
       - name: Set Docker Repository
         run: |
-          if [ ${GITHUB_REPOSITORY} == "diyhue/diyHue" ]; then
+          if [ ${GITHUB_REPOSITORY} == "poolski/diyHue" ]; then
             if [ ${{ matrix.registry }} == "registry.hub.docker.com" ]; then
               export DOCKER_REPO="diyhue/core"
             else
@@ -310,7 +310,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        registry: [registry.hub.docker.com, ghcr.io/diyhue]
+        registry: [ghcr.io/poolski]
         include:
           - version: v7l
             arch_friendly: armv7
@@ -319,7 +319,7 @@ jobs:
     steps:
       - name: Set Docker Repository
         run: |
-          if [ ${GITHUB_REPOSITORY} == "diyhue/diyHue" ]; then
+          if [ ${GITHUB_REPOSITORY} == "poolski/diyHue" ]; then
             if [ ${{ matrix.registry }} == "registry.hub.docker.com" ]; then
               export DOCKER_REPO="diyhue/core"
             else
