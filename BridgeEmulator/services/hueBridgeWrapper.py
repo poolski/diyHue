@@ -397,22 +397,31 @@ def _mapLightTypeToModel(light_type, original_modelid=""):
 def _discoverHueSensors(base_url, credentials):
     """Discover sensors from Hue bridge including switches, dimmers, and motion sensors"""
     try:
+        logging.info(f"Fetching sensors from Hue bridge: {base_url}/sensors")
         response = requests.get(f"{base_url}/sensors", timeout=3)
         if response.status_code != 200:
             logging.warning(f"Failed to get sensors from Hue bridge: {response.status_code}")
             return
         
         sensors = response.json()
-        logging.info(f"Found {len(sensors)} sensors on Hue bridge")
+        logging.info(f"Found {len(sensors)} total sensors on Hue bridge")
+        
+        # Log all sensors for debugging
+        for sensor_id, sensor_data in sensors.items():
+            logging.debug(f"Sensor {sensor_id}: {sensor_data.get('name')} (type: {sensor_data.get('type')}, uniqueid: {sensor_data.get('uniqueid', 'N/A')})")
         
         # Group sensors by device (using uniqueid prefix)
         device_groups = _groupSensorsByDevice(sensors)
+        logging.info(f"Grouped sensors into {len(device_groups)} device(s)")
         
         for device_id, device_sensors in device_groups.items():
+            logging.debug(f"Processing device group {device_id} with {len(device_sensors)} sensor(s)")
             _addHueDevice(device_sensors, credentials)
             
     except Exception as e:
         logging.error(f"Error discovering Hue sensors: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
 
 
 def _groupSensorsByDevice(sensors):
@@ -470,7 +479,8 @@ def _addHueDevice(device_sensors, credentials):
         _addHueRotarySwitchDevice(device_sensors, credentials)
     
     else:
-        logging.debug(f"Unknown Hue device type with sensors: {sensor_types}")
+        logging.warning(f"Unknown or unsupported Hue device type - Device: {device_name}, Sensor types: {sensor_types}")
+        logging.info(f"Sensor details: {list(device_sensors.values())[0] if device_sensors else 'None'}")
 
 
 def _addHueMotionSensorDevice(device_sensors, credentials):
@@ -479,9 +489,11 @@ def _addHueMotionSensorDevice(device_sensors, credentials):
     first_sensor = next(iter(device_sensors.values()))
     hue_sensor_id = next(iter(device_sensors.keys()))
     
+    logging.info(f"Attempting to add Hue motion sensor with ID {hue_sensor_id}")
+    
     existing = getHueBridgeObject(hue_sensor_id, "sensors")
     if existing:
-        logging.debug(f"Motion sensor {first_sensor.get('name')} already exists")
+        logging.info(f"Motion sensor {first_sensor.get('name')} already exists, skipping")
         return
     
     protocol_cfg = {
@@ -492,8 +504,14 @@ def _addHueMotionSensorDevice(device_sensors, credentials):
     }
     
     device_name = first_sensor.get("name", "Motion Sensor").replace("Hue motion ", "").replace("Hue ambient light ", "").replace("Hue temperature ", "")
-    logging.info(f"Adding Hue motion sensor: {device_name}")
-    addHueMotionSensor(device_name, "hue", protocol_cfg)
+    logging.info(f"Adding Hue motion sensor: {device_name} with {len(device_sensors)} component(s)")
+    try:
+        addHueMotionSensor(device_name, "hue", protocol_cfg)
+        logging.info(f"Successfully added motion sensor: {device_name}")
+    except Exception as e:
+        logging.error(f"Failed to add motion sensor {device_name}: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
 
 
 def _addHueContactSensorDevice(device_sensors, credentials):
@@ -524,9 +542,11 @@ def _addHueSwitchDevice(device_sensors, credentials):
     hue_sensor_id = next(iter(device_sensors.keys()))
     modelid = first_sensor.get("modelid", "RWL021")
     
+    logging.info(f"Attempting to add Hue switch with ID {hue_sensor_id}")
+    
     existing = getHueBridgeObject(hue_sensor_id, "sensors")
     if existing:
-        logging.debug(f"Switch {first_sensor.get('name')} already exists")
+        logging.info(f"Switch {first_sensor.get('name')} already exists, skipping")
         return
     
     # Create sensor in bridgeConfig
@@ -555,12 +575,18 @@ def _addHueSwitchDevice(device_sensors, credentials):
         "protocol_cfg": protocol_cfg
     }
     
-    logging.info(f"Adding Hue switch: {deviceData['name']} (model: {modelid})")
-    bridgeConfig["sensors"][new_sensor_id] = Sensor.Sensor(deviceData)
-    
-    newDeviceObj = Device.Device(deviceData)
-    newDeviceObj.add_element(deviceData["type"], bridgeConfig["sensors"][new_sensor_id])
-    bridgeConfig["device"][newDeviceObj.id_v2] = newDeviceObj
+    logging.info(f"Adding Hue switch: {deviceData['name']} (model: {modelid}, type: {sensor_type})")
+    try:
+        bridgeConfig["sensors"][new_sensor_id] = Sensor.Sensor(deviceData)
+        
+        newDeviceObj = Device.Device(deviceData)
+        newDeviceObj.add_element(deviceData["type"], bridgeConfig["sensors"][new_sensor_id])
+        bridgeConfig["device"][newDeviceObj.id_v2] = newDeviceObj
+        logging.info(f"Successfully added switch: {deviceData['name']}")
+    except Exception as e:
+        logging.error(f"Failed to add switch {deviceData['name']}: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
 
 
 def _addHueRotarySwitchDevice(device_sensors, credentials):
