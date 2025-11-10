@@ -3,6 +3,11 @@ Hue Bridge Wrapper Service
 
 This service wraps around a real Philips Hue bridge, passing through all devices
 including lights, switches, dimmers, buttons, and sensors.
+
+Features:
+- Automatic bridge discovery via SSDP/mDNS
+- Interactive pairing for discovered bridges
+- Manual configuration fallback
 """
 
 import json
@@ -10,9 +15,13 @@ import logManager
 import configManager
 import requests
 import weakref
+import socket
+import struct
+import xml.etree.ElementTree as ET
 from threading import Thread
 from time import sleep
 from datetime import datetime, timezone
+from zeroconf import IPVersion, ServiceBrowser, ServiceStateChange, Zeroconf
 from HueObjects import Sensor, Device, Light
 from functions.core import nextFreeId
 from sensors.discover import addHueMotionSensor, addHueSwitch, addHueRotarySwitch, addHueSecureContactSensor
@@ -23,6 +32,12 @@ bridgeConfig = configManager.bridgeConfig.yaml_config
 
 # Cache for device IDs to bridge objects
 device_cache = {}
+
+# Discovered bridges (not yet paired)
+discovered_bridges = {}
+
+# Pairing state for bridges awaiting link button press
+pairing_bridges = {}
 
 
 def getHueBridgeObject(hue_id, resource_type):
@@ -49,6 +64,232 @@ def getHueBridgeObject(hue_id, resource_type):
     
     logging.debug(f"Hue {resource_type} {hue_id} not found")
     return None
+
+
+def discoverHueBridgesSSDP(timeout=5):
+    """
+    Discover Hue bridges on the network using SSDP.
+    Returns a list of discovered bridge IPs.
+    """
+    SSDP_ADDR = '239.255.255.250'
+    SSDP_PORT = 1900
+    SSDP_MX = 3
+    SSDP_ST = 'urn:schemas-upnp-org:device:basic:1'
+    
+    ssdpRequest = (
+        'M-SEARCH * HTTP/1.1\r\n'
+        f'HOST: {SSDP_ADDR}:{SSDP_PORT}\r\n'
+        'MAN: "ssdp:discover"\r\n'
+        f'MX: {SSDP_MX}\r\n'
+        f'ST: {SSDP_ST}\r\n'
+        '\r\n'
+    )
+    
+    bridges = []
+    
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(timeout)
+        sock.sendto(ssdpRequest.encode('utf-8'), (SSDP_ADDR, SSDP_PORT))
+        
+        while True:
+            try:
+                data, addr = sock.recvfrom(1024)
+                response = data.decode('utf-8')
+                
+                # Check if this is a Hue bridge response
+                if 'IpBridge' in response or 'hue-bridgeid' in response:
+                    # Extract IP from LOCATION header
+                    for line in response.split('\r\n'):
+                        if line.startswith('LOCATION:'):
+                            location = line.split(':', 1)[1].strip()
+                            # Extract IP from http://IP:PORT/...
+                            ip = location.split('//')[1].split(':')[0]
+                            if ip not in [b.get('ip') for b in bridges]:
+                                # Get bridge info
+                                bridge_info = _getBridgeInfo(ip)
+                                if bridge_info:
+                                    bridges.append(bridge_info)
+                                    logging.info(f"Discovered Hue bridge via SSDP: {ip}")
+            except socket.timeout:
+                break
+    except Exception as e:
+        logging.debug(f"SSDP discovery error: {e}")
+    finally:
+        sock.close()
+    
+    return bridges
+
+
+def discoverHueBridgesMDNS(timeout=5):
+    """
+    Discover Hue bridges on the network using mDNS/Zeroconf.
+    Returns a list of discovered bridge IPs.
+    """
+    bridges = []
+    
+    class HueBridgeListener:
+        def __init__(self):
+            self.bridges = []
+        
+        def add_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info:
+                ip = socket.inet_ntoa(info.addresses[0])
+                bridge_info = _getBridgeInfo(ip)
+                if bridge_info and ip not in [b.get('ip') for b in self.bridges]:
+                    self.bridges.append(bridge_info)
+                    logging.info(f"Discovered Hue bridge via mDNS: {ip}")
+        
+        def remove_service(self, zc, type_, name):
+            pass
+        
+        def update_service(self, zc, type_, name):
+            pass
+    
+    try:
+        zeroconf = Zeroconf(ip_version=IPVersion.V4Only)
+        listener = HueBridgeListener()
+        browser = ServiceBrowser(zeroconf, "_hue._tcp.local.", listener)
+        sleep(timeout)
+        bridges = listener.bridges
+        zeroconf.close()
+    except Exception as e:
+        logging.debug(f"mDNS discovery error: {e}")
+    
+    return bridges
+
+
+def _getBridgeInfo(ip):
+    """
+    Get bridge information from description.xml
+    Returns dict with bridge details or None
+    """
+    try:
+        response = requests.get(f"http://{ip}/description.xml", timeout=2)
+        if response.status_code == 200:
+            root = ET.fromstring(response.content)
+            
+            # Extract bridge ID from XML
+            ns = {'d': 'urn:schemas-upnp-org:device-1-0'}
+            serial_number = root.find('.//d:serialNumber', ns)
+            model_name = root.find('.//d:modelName', ns)
+            
+            if serial_number is not None and 'Philips hue' in (model_name.text if model_name is not None else ''):
+                bridge_id = serial_number.text
+                return {
+                    'ip': ip,
+                    'id': bridge_id,
+                    'name': f"Hue Bridge ({bridge_id[-6:]})",
+                    'paired': False
+                }
+    except Exception as e:
+        logging.debug(f"Error getting bridge info from {ip}: {e}")
+    
+    return None
+
+
+def autoDiscoverBridges():
+    """
+    Automatically discover Hue bridges using both SSDP and mDNS.
+    Returns combined list of unique bridges.
+    """
+    logging.info("Starting automatic Hue bridge discovery...")
+    
+    # Try both discovery methods
+    ssdp_bridges = discoverHueBridgesSSDP(timeout=3)
+    mdns_bridges = discoverHueBridgesMDNS(timeout=3)
+    
+    # Combine and deduplicate
+    all_bridges = ssdp_bridges + mdns_bridges
+    unique_bridges = []
+    seen_ips = set()
+    
+    for bridge in all_bridges:
+        if bridge['ip'] not in seen_ips:
+            seen_ips.add(bridge['ip'])
+            unique_bridges.append(bridge)
+    
+    # Check which bridges are already configured
+    if "hueBridges" in bridgeConfig["config"]:
+        configured_ips = {b.get('ip') for b in bridgeConfig["config"]["hueBridges"]}
+        for bridge in unique_bridges:
+            bridge['paired'] = bridge['ip'] in configured_ips
+    
+    # Store discovered bridges
+    for bridge in unique_bridges:
+        if not bridge['paired']:
+            discovered_bridges[bridge['ip']] = bridge
+            logging.info(f"Found unpaired bridge: {bridge['name']} at {bridge['ip']}")
+    
+    logging.info(f"Discovery complete: {len(unique_bridges)} bridge(s) found")
+    return unique_bridges
+
+
+def pairWithBridge(ip, devicetype="diyhue#wrapper"):
+    """
+    Attempt to pair with a Hue bridge.
+    Returns API key on success, or error message.
+    """
+    try:
+        response = requests.post(
+            f"http://{ip}/api",
+            json={"devicetype": devicetype},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                if "success" in result[0]:
+                    username = result[0]["success"]["username"]
+                    logging.info(f"Successfully paired with bridge at {ip}")
+                    
+                    # Save to config
+                    if "hueBridges" not in bridgeConfig["config"]:
+                        bridgeConfig["config"]["hueBridges"] = []
+                    
+                    # Check if bridge already exists in config
+                    existing = False
+                    for bridge in bridgeConfig["config"]["hueBridges"]:
+                        if bridge.get("ip") == ip:
+                            bridge["hueUser"] = username
+                            bridge["enabled"] = True
+                            existing = True
+                            break
+                    
+                    if not existing:
+                        bridgeConfig["config"]["hueBridges"].append({
+                            "ip": ip,
+                            "hueUser": username,
+                            "enabled": True
+                        })
+                    
+                    # Save config
+                    configManager.bridgeConfig.save_config()
+                    
+                    # Remove from discovered (unpaired) list
+                    if ip in discovered_bridges:
+                        del discovered_bridges[ip]
+                    
+                    return {"success": True, "username": username}
+                    
+                elif "error" in result[0]:
+                    error = result[0]["error"]
+                    return {"success": False, "error": error.get("description", "Unknown error")}
+        
+        return {"success": False, "error": "Invalid response from bridge"}
+        
+    except Exception as e:
+        logging.error(f"Error pairing with bridge at {ip}: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def getDiscoveredBridges():
+    """
+    Get list of discovered but unpaired bridges.
+    """
+    return list(discovered_bridges.values())
 
 
 def discoverHueBridgeDevices(credentials):
@@ -395,10 +636,19 @@ def _pollBridgeSensors(bridge):
 def startHueBridgeWrapper():
     """
     Start the Hue bridge wrapper service.
-    Discovers devices and starts polling for state updates.
+    Auto-discovers bridges, discovers devices, and starts polling for state updates.
     """
     if "hueBridges" not in bridgeConfig["config"]:
         bridgeConfig["config"]["hueBridges"] = []
+    
+    # Auto-discover bridges on the network
+    discovered = autoDiscoverBridges()
+    
+    if discovered:
+        unpaired = [b for b in discovered if not b['paired']]
+        if unpaired:
+            logging.info(f"Found {len(unpaired)} unpaired Hue bridge(s). Use the pairing API to connect.")
+            logging.info("POST to /api with bridge IP to initiate pairing (requires link button press)")
     
     # Discover devices from all configured bridges
     for bridge in bridgeConfig["config"]["hueBridges"]:
