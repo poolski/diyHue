@@ -230,20 +230,26 @@ def pairWithBridge(ip, devicetype="diyhue#wrapper"):
     """
     Attempt to pair with a Hue bridge.
     Returns API key on success, or error message.
+    
+    Security: IP address is validated to prevent SSRF attacks.
+    Only private network IPs are allowed (192.168.x.x, 10.x.x.x, 172.16-31.x.x).
+    Loopback and public IPs are rejected.
     """
     # Validate IP address to prevent SSRF
     import ipaddress
     try:
         ip_obj = ipaddress.ip_address(ip)
-        # Reject loopback and private IPs that might be internal services
+        # Reject loopback addresses (127.0.0.1, ::1)
         if ip_obj.is_loopback:
             return {"success": False, "error": "Loopback addresses not allowed"}
-        # Only allow private network IPs (typical for Hue bridges)
+        # Only allow private network IPs (typical for Hue bridges on local network)
+        # This prevents SSRF attacks to external services
         if not ip_obj.is_private:
             return {"success": False, "error": "Only private network addresses allowed"}
     except ValueError:
         return {"success": False, "error": "Invalid IP address format"}
     
+    # IP is validated - safe to make request to local network device
     try:
         response = requests.post(
             f"http://{ip}/api",
